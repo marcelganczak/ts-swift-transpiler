@@ -9,7 +9,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, './client')));
 
-app.use('/api/transpile', require('./routes/transpile'));
+app.use('/ts-to-swift/api/transpile', require('./routes/transpile'));
 
 app.use(require('./routes/index'));
 

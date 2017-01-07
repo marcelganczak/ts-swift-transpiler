@@ -69,6 +69,8 @@ let units = [
 ]
 ```
 
+Check out http://ec2-52-213-137-101.eu-west-1.compute.amazonaws.com/ts-to-swift for live preview.
+
 It's early days and the project is only at a "proof of concept" stage as yet.
 I'm using it to transpile JSONs in a pet project of mine, so I will be adding more functionality as I go along.
 

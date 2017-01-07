@@ -248,7 +248,7 @@ let units = [
                     lastLanguage = language;
 
                     var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "/api/transpile");
+                    xhr.open("POST", "/ts-to-swift/api/transpile");
                     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 
                     xhr.onreadystatechange = function () {
