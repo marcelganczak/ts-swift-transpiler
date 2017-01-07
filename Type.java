@@ -1,95 +1,90 @@
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 class BasicType extends AbstractType {
-    private String swiftType;
-    public BasicType(String swiftType) {
-        this.swiftType = swiftType;
-        this.isOptional = false;
+    private String tsType;
+    public BasicType(String tsType) {
+        this.tsType = tsType;
     }
-    public BasicType(String swiftType, boolean isOptional) {
-        this.swiftType = swiftType;
-        this.isOptional = isOptional;
+    public String tsType() {
+        return tsType;
     }
     public String swiftType() {
-        return swiftType;
-    }
-    public String jsType() {
-        return Type.basicToJs(swiftType);
+        return Type.basicToSwift(tsType);
     }
     public AbstractType resulting(String accessor) {
         return null;
     }
     public AbstractType copy() {
-        return new BasicType(this.swiftType, this.isOptional);
+        return new BasicType(this.tsType);
     }
 }
 class FunctionType extends AbstractType {
-    public ArrayList<String> parameterExternalNames;
-    public ArrayList<AbstractType> parameterTypes;
+    public List<AbstractType> parameterTypes;
     public int numParametersWithDefaultValue;
     public AbstractType returnType;
-    public FunctionType(SwiftParser.Function_declarationContext ctx, Visitor visitor) {
-        List<SwiftParser.ParameterContext> parameters = FunctionUtil.parameters(ctx);
-
-        parameterTypes = FunctionUtil.parameterTypes(parameters, visitor);
-        parameterExternalNames = FunctionUtil.parameterExternalNames(parameters);
-        numParametersWithDefaultValue = FunctionUtil.numParametersWithDefaultValue(parameters);
-
-        returnType = Type.fromFunction(ctx.function_signature().function_result(), ctx.function_body().code_block().statements(), false, visitor);
+    public FunctionType(ECMAScriptParser.Arrow_functionContext ctx, Visitor visitor) {
+        List<ECMAScriptParser.FormalParameterContext> parameters = ctx.arrowFunctionHead().formalParameterList().formalParameter();
+        parameterTypes = new ArrayList<AbstractType>();
+        for(int i = 0; i < parameters.size(); i++) {
+            parameterTypes.add(Type.fromDefinition(parameters.get(i).typeAnnotation().type()));
+        }
+        returnType = new BasicType(ctx.typeAnnotation().type().getText());
+        numParametersWithDefaultValue = 0;
     }
-    public FunctionType(ArrayList<String> parameterExternalNames, ArrayList<AbstractType> parameterTypes, int numParametersWithDefaultValue, AbstractType returnType) {
-        this.parameterExternalNames = parameterExternalNames;
+    public FunctionType(List<AbstractType> parameterTypes, int numParametersWithDefaultValue, AbstractType returnType) {
         this.parameterTypes = parameterTypes;
         this.numParametersWithDefaultValue = numParametersWithDefaultValue;
         this.returnType = returnType;
     }
-    public String swiftType() {
+    public String tsType() {
         return "Function";
     }
-    public String jsType() {
+    public String swiftType() {
         return "Function";
     }
     public AbstractType resulting(String accessor) {
         return returnType;
     }
     public AbstractType copy() {
-        return new FunctionType(this.parameterExternalNames, this.parameterTypes, this.numParametersWithDefaultValue, this.returnType);
+        return new FunctionType(this.parameterTypes, this.numParametersWithDefaultValue, this.returnType);
     }
-    public boolean sameAs(FunctionType otherType) {
+    /*public boolean sameAs(FunctionType otherType) {
         if(parameterTypes.size() != otherType.parameterTypes.size()) return false;
         if(!returnType.swiftType().equals(otherType.returnType.swiftType())) return false;
         for(int i = 0; i < parameterTypes.size(); i++) if(!parameterTypes.get(i).swiftType().equals(otherType.parameterTypes.get(i).swiftType())) return false;
         return true;
-    }
+    }*/
 }
 class NestedType extends AbstractType {
-    private String wrapperType;//Dictionary/Array/Set
+    private String wrapperType;//array/Object
     public AbstractType keyType;
     public AbstractType valueType;
-    public NestedType(String wrapperType, AbstractType keyType, AbstractType valueType, boolean isOptional) {
+    public NestedType(String wrapperType, AbstractType keyType, AbstractType valueType) {
         this.wrapperType = wrapperType;
         this.keyType = keyType;
         this.valueType = valueType;
-        this.isOptional = isOptional;
     }
-    public String swiftType() {
+    public String tsType() {
         return wrapperType;
     }
-    public String jsType() {
-        return wrapperType.equals("Dictionary") ? "Object" : wrapperType.equals("Array") ? "Array<" + valueType.jsType() + ">" : "Set<" + valueType.jsType() + ">";
+    public String swiftType() {
+        return wrapperType.equals("Object") ? "[" + keyType.swiftType() + ":" + valueType.swiftType() + "]" : "[" + valueType.swiftType() + "]";
     }
     public AbstractType resulting(String accessor) {
         return valueType;
     }
     public AbstractType copy() {
-        return new NestedType(this.wrapperType, this.keyType, this.valueType, this.isOptional);
+        return new NestedType(this.wrapperType, this.keyType, this.valueType);
     }
 }
 class NestedByIndexType extends AbstractType {
-    private LinkedHashMap<String, AbstractType> swiftType;
-    public NestedByIndexType(LinkedHashMap<String, AbstractType> swiftType) {
+    private HashMap<String, AbstractType> swiftType;
+    public NestedByIndexType(HashMap<String, AbstractType> swiftType) {
         this.swiftType = swiftType;
     }
     public ArrayList<String> keys() {
@@ -98,7 +93,7 @@ class NestedByIndexType extends AbstractType {
     public String swiftType() {
         return "Tuple";
     }
-    public String jsType() {
+    public String tsType() {
         return "any";
     }
     public AbstractType resulting(String accessor) {
@@ -111,120 +106,71 @@ class NestedByIndexType extends AbstractType {
 
 public class Type {
 
-    public static String basicToJs(String swiftType) {
-        if (swiftType.equals("String")) {
-            return "string";
+    public static String basicToSwift(String swiftType) {
+        if (swiftType.equals("string")) {
+            return "String";
         }
-        else if(swiftType.equals("Int") || swiftType.equals("Float") || swiftType.equals("Double")) {
-            return "number";
+        else if(swiftType.equals("number")) {
+            return "Double";
         }
-        else if(swiftType.equals("Bool")) {
-            return "boolean";
+        else if(swiftType.equals("boolean")) {
+            return "Bool";
         }
-        else if(swiftType.equals("Void")) {
-            return "void";
+        else if(swiftType.equals("void")) {
+            return "Void";
         }
         return null;
     }
 
-    public static AbstractType fromDefinition(SwiftParser.TypeContext ctx) {
-        boolean isOptional = false;
-        if(ctx.optional_type() != null) {
-            isOptional = true;
-            ctx = ctx.type(0);
+    public static AbstractType fromDefinition(ECMAScriptParser.TypeContext ctx) {
+        return new BasicType(ctx.getText());
+        /*AbstractType type;
+        if(ctx.typeLiteral() != null) {
+            if(ctx.typeLiteral().objectType() != null) type = fromObjectDefinition(ctx.typeLiteral().objectType());
+            else if(ctx.typeLiteral().arrayType() != null) type = fromArrayDefinition(ctx.typeLiteral().arrayType());
+            else if(ctx.typeLiteral().tupleType() != null) type = fromTupleDefinition(ctx.typeLiteral().tupleType());
+            else if(ctx.typeLiteral().functionType() != null) type = fromFunctionDefinition(ctx.typeLiteral().functionType());
+            else if(ctx.typeLiteral().constructorType() != null) type = fromConstructorDefinition(ctx.typeLiteral().constructorType());
+            else throw new Error("unknown type literal");
         }
-
-        AbstractType type;
-        if(WalkerUtil.isDirectDescendant(SwiftParser.Dictionary_definitionContext.class, ctx)) type = fromDictionaryDefinition(ctx.dictionary_definition(), isOptional);
-        else if(WalkerUtil.isDirectDescendant(SwiftParser.Array_definitionContext.class, ctx)) type = fromArrayDefinition(ctx.array_definition(), isOptional);
-        else if(WalkerUtil.isDirectDescendant(SwiftParser.Tuple_typeContext.class, ctx)) type = fromTupleDefinition(ctx.tuple_type().tuple_type_body().tuple_type_element_list(), isOptional);
-        else if(ctx.type_identifier() != null && ctx.type_identifier().type_name() != null && ctx.type_identifier().type_name().getText().equals("Set")) type = fromSetDefinition(ctx.type_identifier(), isOptional);
-        else if(WalkerUtil.has(SwiftParser.Arrow_operatorContext.class, ctx)) type = fromFunctionDefinition(ctx.type(0), ctx.type(1), isOptional);
-        else type = new BasicType(ctx.getText(), isOptional);
-
-        if(ctx.getParent().getParent() instanceof SwiftParser.ParameterContext && ((SwiftParser.ParameterContext)ctx.getParent().getParent()).range_operator() != null) {
-            type = new NestedType("Array", new BasicType("Int"), type, false);
-        }
-
-        return type;
-    }
-
-    public static AbstractType fromDefinition(String description, AbstractType lType) {
-        if(description == null) return null;
-        if(description.equals("#valueType")) return ((NestedType)lType).valueType;
-        if(description.equals("#keyType")) return ((NestedType)lType).keyType;
-        if(description.contains("->")) {
-            String[] parts = description.split("\\->");
-            ArrayList<String> parameterExternalNames = new ArrayList<String>();
-            ArrayList<AbstractType> parameterTypes = new ArrayList<AbstractType>();
-            String[] params = parts[0].substring(1, parts[0].length() - 1).split(",");
-            for(int i = 0; i < params.length; i++) {
-                parameterExternalNames.add("");
-                parameterTypes.add(fromDefinition(params[i], lType));
+        else if(ctx.typeName() != null) {
+            String typeName = ctx.typeName().getText();
+            if(typeName.equals("boolean") || typeName.equals("number") || typeName.equals("string")) {
+                type = new BasicType(typeName);
             }
-            return new FunctionType(parameterExternalNames, parameterTypes, 0, fromDefinition(parts[1], lType));
-        }
-        return new BasicType(description);
-    }
-
-    private static AbstractType fromDictionaryDefinition(SwiftParser.Dictionary_definitionContext ctx, boolean isOptional) {
-        List<SwiftParser.TypeContext> types = ctx.type();
-        return new NestedType("Dictionary", fromDefinition(types.get(0)), fromDefinition(types.get(1)), isOptional);
-    }
-
-    private static AbstractType fromArrayDefinition(SwiftParser.Array_definitionContext ctx, boolean isOptional) {
-        return new NestedType("Array", new BasicType("Int"), fromDefinition(ctx.type()), isOptional);
-    }
-
-    private static LinkedHashMap<String, AbstractType> flattenTupleDefinition(SwiftParser.Tuple_type_element_listContext ctx) {
-        int elementI = 0;
-        LinkedHashMap<String, AbstractType> flattened = new LinkedHashMap<String, AbstractType>();
-        while(ctx != null) {
-            SwiftParser.Tuple_type_elementContext tupleTypeElement = ctx.tuple_type_element();
-            if(tupleTypeElement != null) {
-                String index = tupleTypeElement.element_name() != null ? tupleTypeElement.element_name().getText() : Integer.toString(elementI);
-                flattened.put(index, new BasicType(tupleTypeElement.type() != null ? tupleTypeElement.type().getText() : tupleTypeElement.type_annotation().type().getText()));
-                elementI++;
+            else if(typeName.equals("any")) {
+                throw new Error("type 'any' not supported");
             }
-            ctx = ctx.tuple_type_element_list();
-        }
-        return flattened;
-    }
-    private static AbstractType fromTupleDefinition(SwiftParser.Tuple_type_element_listContext ctx, boolean isOptional) {
-        LinkedHashMap<String, AbstractType> elems = flattenTupleDefinition(ctx);
-        return new NestedByIndexType(elems);
-    }
-
-    private static AbstractType fromSetDefinition(SwiftParser.Type_identifierContext ctx, boolean isOptional) {
-        return new NestedType("Set", new BasicType("Int"), fromDefinition(ctx.generic_argument_clause().generic_argument_list().generic_argument(0).type()), isOptional);
-    }
-
-    private static AbstractType fromFunctionDefinition(SwiftParser.TypeContext paramTuple, SwiftParser.TypeContext returnType, boolean isOptional) {
-        LinkedHashMap<String, AbstractType> params = flattenTupleDefinition(paramTuple.tuple_type().tuple_type_body().tuple_type_element_list());
-        ArrayList<String> parameterExternalNames = new ArrayList<String>();
-        ArrayList<AbstractType> parameterTypes = new ArrayList<AbstractType>();
-        for(Map.Entry<String, AbstractType> iterator:params.entrySet()) {
-            String externalName = iterator.getKey();
-            parameterExternalNames.add(externalName.matches("^\\d+$") ? "" : externalName);
-            parameterTypes.add(iterator.getValue());
-        }
-        return new FunctionType(parameterExternalNames, parameterTypes, 0, fromDefinition(returnType));
-    }
-
-    public static AbstractType fromFunction(SwiftParser.Function_resultContext functionResult, SwiftParser.StatementsContext statements, boolean isClosure, Visitor visitor) {
-        if(functionResult != null) return fromDefinition(functionResult.type());
-        visitor.visitChildren(statements);
-        for(int i = 0; i < statements.getChildCount(); i++) {
-            if(WalkerUtil.has(SwiftParser.Return_statementContext.class, statements.getChild(i))) {
-                SwiftParser.ExpressionContext expression = ((SwiftParser.StatementContext)statements.getChild(i)).control_transfer_statement().return_statement().expression();
-                return expression != null ? infer(expression, visitor) : new BasicType("Void");
+            else {
+                //TODO work out form class name
+                throw new Error("not implemented");
             }
         }
-        if(isClosure && statements.getChildCount() > 0) return infer((SwiftParser.ExpressionContext) statements.getChild(statements.getChildCount() - 1), visitor);
-        return new BasicType("Void");
+        else throw new Error("unknown type");
+        return type;*/
     }
 
-    public static AbstractType infer(SwiftParser.ExpressionContext ctx, Visitor visitor) {
+    /*private static AbstractType fromObjectDefinition(ECMAScriptParser.ObjectTypeContext ctx) {
+        throw new Error("not implemented");
+    }
+
+    private static AbstractType fromArrayDefinition(ECMAScriptParser.ArrayTypeContext ctx) {
+        throw new Error("not implemented");
+    }
+
+    private static AbstractType fromTupleDefinition(ECMAScriptParser.TupleTypeContext ctx) {
+        throw new Error("not implemented");
+    }
+
+    private static AbstractType fromFunctionDefinition(ECMAScriptParser.FunctionTypeContext ctx) {
+        throw new Error("not implemented");
+    }
+
+    private static AbstractType fromConstructorDefinition(ECMAScriptParser.ConstructorTypeContext ctx) {
+        throw new Error("not implemented");
+    }*/
+
+    public static AbstractType infer(ECMAScriptParser.ExpressionContext ctx, Visitor visitor) {
         return new Expression(ctx, null, visitor).type;
     }
 
@@ -235,18 +181,16 @@ public class Type {
     }
 
     public static AbstractType alternative(PrefixOrExpression L, PrefixOrExpression R) {
-        if(L.type().swiftType().equals(R.type().swiftType())) return L.type();
-        if(L.type().swiftType().equals("Void")) {
+        if(L.type().tsType().equals(R.type().tsType())) return L.type();
+        if(L.type().tsType().equals("Void")) {
             AbstractType rClone = R.type().copy();
-            rClone.isOptional = true;
             return rClone;
         }
-        if(R.type().swiftType().equals("Void")) {
+        if(R.type().tsType().equals("Void")) {
             AbstractType lClone = L.type().copy();
-            lClone.isOptional = true;
             return lClone;
         }
-        System.out.println("//Ambiguous return type: " + L.type().swiftType() + " || " + R.type().swiftType());
+        System.out.println("//Ambiguous return type: " + L.type().tsType() + " || " + R.type().tsType());
         return L.type();
     }
 }

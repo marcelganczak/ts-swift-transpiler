@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import java.util.Arrays;
 import java.util.List;
 
-public class Visitor extends SwiftBaseVisitor<String> {
+public class Visitor extends ECMAScriptBaseVisitor<String> {
 
     public EntityCache cache;
 
@@ -82,11 +82,11 @@ public class Visitor extends SwiftBaseVisitor<String> {
         if(text.equals("<EOF>")) {
             return "";
         }
-        else if(text.equals("let")) {
-            return "const ";
-        }
-        else if(text.equals("var")) {
+        else if(text.equals("const")) {
             return "let ";
+        }
+        else if(text.equals("let")) {
+            return "var ";
         }
         else if(text.equals(".")) {
             return ".";

@@ -9,15 +9,15 @@ public class AssignmentUtil {
         return code;
     }
 
-    static public String handleInitializer(SwiftParser.Pattern_initializerContext ctx, Visitor visitor) {
+    /*static public String handleInitializer(SwiftParser.Pattern_initializerContext ctx, Visitor visitor) {
         String varName = ctx.pattern().identifier_pattern().getText();
         AbstractType varType = visitor.cache.getType(varName, ctx);
-        if(varType instanceof FunctionType) varName += FunctionUtil.nameAugment((FunctionType)varType);
+        //if(varType instanceof FunctionType) varName += FunctionUtil.nameAugment((FunctionType)varType);
 
-        String transpiled = varName + ":" + varType.jsType();
+        String transpiled = varName + ":" + varType.swiftType();
         if(ctx.initializer() != null && ctx.initializer().expression() != null) {
             transpiled += " = " + augment(new Expression(ctx.initializer().expression(), varType, visitor).code, varType, ctx.initializer().expression(), visitor);
         }
         return transpiled;
-    }
+    }*/
 }

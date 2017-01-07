@@ -15,6 +15,8 @@ public class BinaryExpression implements PrefixOrExpression {
         try { jsonTxt = IOUtils.toString(is); } catch (IOException e) { }
         try { definitions = new JSONObject(jsonTxt); } catch (JSONException e) { }
     }
+    static public int minOperatorPriority = 4;
+    static public int maxOperatorPriority = 10;
 
     AbstractType type;
     String code;
@@ -34,35 +36,35 @@ public class BinaryExpression implements PrefixOrExpression {
         String alias = BinaryExpression.operatorAlias(operator);
 
         PrefixOrExpression L, R;
-        if(this.L instanceof SwiftParser.Prefix_expressionContext) {
-            this.L = new Prefix((SwiftParser.Prefix_expressionContext) this.L, type, visitor);
+        if(this.L instanceof ECMAScriptParser.Prefix_expressionContext) {
+            this.L = new Prefix((ECMAScriptParser.Prefix_expressionContext) this.L, type, visitor);
             if(type == null && isAssignment(alias)) type = ((Prefix)this.L).type();
         }
         else ((BinaryExpression)this.L).compute(type, visitor);
-        if(this.R instanceof SwiftParser.Prefix_expressionContext) {
-            this.R = new Prefix((SwiftParser.Prefix_expressionContext) this.R, type, visitor);
+        if(this.R instanceof ECMAScriptParser.Prefix_expressionContext) {
+            this.R = new Prefix((ECMAScriptParser.Prefix_expressionContext) this.R, type, visitor);
         }
         else if(this.R != null) ((BinaryExpression)this.R).compute(type, visitor);
         L = (PrefixOrExpression)this.L;
         R = (PrefixOrExpression)this.R;
 
-        if(operator instanceof SwiftParser.Conditional_operatorContext) {
-            SwiftParser.Conditional_operatorContext conditionalOperator = (SwiftParser.Conditional_operatorContext)operator;
-            Expression passExpression = new Expression(conditionalOperator.expression(), R.type(), visitor);
+        if(operator instanceof ECMAScriptParser.Conditional_operatorContext) {
+            ECMAScriptParser.Conditional_operatorContext conditionalOperator = (ECMAScriptParser.Conditional_operatorContext)operator;
+            Expression passExpression = null;//new Expression(conditionalOperator.expression(), R.type(), visitor);
             this.type = Type.alternative(passExpression, R);
             this.code = L.code() + " ? " + passExpression.code + " : " + R.code();
         }
-        else if(operator instanceof SwiftParser.Type_casting_operatorContext) {
-            AbstractType castType = Type.fromDefinition(((SwiftParser.Type_casting_operatorContext) operator).type());
+        /*else if(operator instanceof ECMAScriptParser.Type_casting_operatorContext) {
+            AbstractType castType = null;//Type.fromDefinition(((ECMAScriptParser.Type_casting_operatorContext) operator).type());
             if(operator.getChild(0).getText().equals("as")) {
                 this.type = castType;
                 this.code = L.code();// + " as " + this.type.jsType();
             }
             else {
                 this.type = new BasicType("Bool");
-                this.code = L.code() + " instanceof " + this.type.jsType();
+                this.code = L.code() + " instanceof " + this.type.swiftType();
             }
-        }
+        }*/
         else {
             String lCode = isAssignment(alias) ? ((Prefix)L).code(true) : L.code(), rCode = R.code(),
                    ifCode0 = null, ifCode1 = null, elseCode1 = null;
@@ -70,13 +72,13 @@ public class BinaryExpression implements PrefixOrExpression {
             if(isAssignment(alias)) {
                 if(((Prefix) L).isDictionaryIndex()) {
                     if(R.type().swiftType().equals("Void")) {lCode = "delete " + lCode; rCode = "";}
-                    else if(R.type().isOptional) {ifCode1 = "(" + rCode + ") != null"; elseCode1 = "delete " + lCode;}
+                    //else if(R.type().isOptional) {ifCode1 = "(" + rCode + ") != null"; elseCode1 = "delete " + lCode;}
                 }
                 if(((Prefix) L).hasOptionals()) {
                     ifCode0 = optionalsGuardingIf(((Prefix) L));
                 }
 
-                if(type instanceof FunctionType && R.type() != null) type = R.type();
+                //if(type instanceof FunctionType && R.type() != null) type = R.type();
                 rCode = AssignmentUtil.augment(rCode, type, R.originalCtx(), visitor);
             }
 
@@ -97,8 +99,8 @@ public class BinaryExpression implements PrefixOrExpression {
         return definitions.optJSONObject(operatorAlias).optInt("priority");
     }
     static public String operatorAlias(ParserRuleContext operator) {
-        if(operator instanceof SwiftParser.Conditional_operatorContext) return "?:";
-        if(operator instanceof SwiftParser.Type_casting_operatorContext) return operator.getChild(0).getText();
+        if(operator instanceof ECMAScriptParser.Conditional_operatorContext) return "?:";
+        //if(operator instanceof ECMAScriptParser.Type_casting_operatorContext) return operator.getChild(0).getText();
         return operator.getText();
     }
 

@@ -9,42 +9,30 @@ public class CacheVisitor extends Visitor {
         this.cache = cache;
     }
 
-    @Override public String visitPattern_initializer(SwiftParser.Pattern_initializerContext ctx) {
-        String varName = ctx.pattern().identifier_pattern().getText();
+    @Override public String visitVariableDeclaration(ECMAScriptParser.VariableDeclarationContext ctx) {
+        String varName = ctx.Identifier().getText();
         AbstractType varType =
-                ctx.pattern().type_annotation() != null && ctx.pattern().type_annotation().type() != null ? Type.fromDefinition(ctx.pattern().type_annotation().type())
-                : Type.infer(ctx.initializer().expression(), this);
-        if(varType instanceof FunctionType) varName += FunctionUtil.nameAugment((FunctionType)varType);
+                ctx.typeAnnotation() != null && ctx.typeAnnotation().type() != null ? Type.fromDefinition(ctx.typeAnnotation().type())
+                : Type.infer(ctx.initialiser().expression(), this);
         cache.cacheOne(varName, varType, ctx);
         return null;
     }
 
-    @Override public String visitFunction_declaration(SwiftParser.Function_declarationContext ctx) {
+    @Override public String visitArrow_function(ECMAScriptParser.Arrow_functionContext ctx) {
         FunctionType functionType = new FunctionType(ctx, this);
-        cache.cacheOne(FunctionUtil.functionName(ctx, functionType), functionType, ctx);
+        //cache.cacheOne(ctx.functionSignature().IDENT().getText(), functionType, ctx);
 
-        ArrayList<String> parameterLocalNames = FunctionUtil.parameterLocalNames(FunctionUtil.parameters(ctx));
+        ArrayList<String> parameterLocalNames = FunctionUtil.parameterLocalNames(ctx.arrowFunctionHead().formalParameterList().formalParameter());
         for(int i = 0; i < parameterLocalNames.size(); i++) {
-            cache.cacheOne(parameterLocalNames.get(i), functionType.parameterTypes.get(i), ctx);
+            cache.cacheOne(parameterLocalNames.get(i), functionType.parameterTypes.get(i), ctx.conciseBody());
         }
 
-        visit(ctx.function_body());
+        visit(ctx.conciseBody());
 
         return null;
     }
 
-    @Override public String visitClosure_expression(SwiftParser.Closure_expressionContext ctx) {
-        /*SwiftParser.Parameter_listContext parameterList = ctx.closure_signature().parameter_clause().parameter_list();
-        List<SwiftParser.ParameterContext> parameters = parameterList != null ? parameterList.parameter() : null;
-        ArrayList<AbstractType> parameterTypes = FunctionUtil.parameterTypes(parameters, this);
-        for(int i = 0; parameterTypes != null && i < parameterTypes.size(); i++) {
-            cache.cacheOne(FunctionUtil.parameterLocalName(parameters.get(i)), parameterTypes.get(i), ctx);
-        }*/
-
-        return null;
-    }
-
-    @Override public String visitFor_in_statement(SwiftParser.For_in_statementContext ctx) {
+    /*@Override public String visitFor_in_statement(SwiftParser.For_in_statementContext ctx) {
 
         if(ctx.expression() != null && ctx.expression().binary_expressions() != null) {
             String varName = ctx.pattern().getText().equals("_") ? "$" : ctx.pattern().getText();
@@ -87,5 +75,5 @@ public class CacheVisitor extends Visitor {
     @Override public String visitGuard_statement(SwiftParser.Guard_statementContext ctx) {
         cacheIfLet(ctx, ctx.code_block());
         return null;
-    }
+    }*/
 }

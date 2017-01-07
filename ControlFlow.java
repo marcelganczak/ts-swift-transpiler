@@ -17,13 +17,13 @@ class IfLet {
             List<SwiftParser.Optional_binding_continuationContext> moreIfLets = conditionClause.condition_list().condition(0).optional_binding_condition().optional_binding_continuation_list().optional_binding_continuation();
             for(int i = 0; i < moreIfLets.size(); i++) ifLets.add(moreIfLets.get(i));
         }
-        for(int i = 0; i < ifLets.size(); i++) {
+        /*for(int i = 0; i < ifLets.size(); i++) {
             String varName = visitor.visitWithoutTerminals(ifLets.get(i) instanceof SwiftParser.Optional_binding_headContext ? ((SwiftParser.Optional_binding_headContext)ifLets.get(i)).pattern() : ((SwiftParser.Optional_binding_continuationContext)ifLets.get(i)).pattern()).trim();
             Expression varVal = new Expression((ifLets.get(i) instanceof SwiftParser.Optional_binding_headContext ? ((SwiftParser.Optional_binding_headContext)ifLets.get(i)).initializer() : ((SwiftParser.Optional_binding_continuationContext)ifLets.get(i)).initializer()).expression(), null, visitor);
             varNames.add(varName);
             varVals.add(varVal.code);
             varTypes.add(varVal.type);
-        }
+        }*/
     }
 }
 public class ControlFlow {
@@ -34,13 +34,13 @@ public class ControlFlow {
         if(expression != null && expression.binary_expressions() != null) {
             SwiftParser.Binary_expressionContext binary = expression.binary_expressions().binary_expression(0);
             String from = visitor.visit(expression.prefix_expression()),
-                   to = new Expression(expression, null, true, visitor).code,
+                   to = null,//new Expression(expression, null, true, visitor).code,
                    varName = ctx.pattern().getText().equals("_") ? "$" : ctx.pattern().getText(),
                    operator = BinaryExpression.operatorAlias(binary.binary_operator());
             return "for(let " + varName + " = " + from + "; " + varName + " " + (operator.equals("...") ? "<=" : "<") + " " + to + "; " + varName + "++) " + visitor.visit(ctx.code_block());
         }
 
-        Expression iteratedObject = new Expression(expression, null, visitor);
+        Expression iteratedObject = null;//new Expression(expression, null, visitor);
         AbstractType iteratedType = iteratedObject.type;
         String indexVar = null, valueVar;
         if(ctx.pattern().tuple_pattern() != null) {
@@ -77,7 +77,7 @@ public class ControlFlow {
         if(ifLet.varNames.size() > 0) {
             for(int i = 0; i < ifLet.varNames.size(); i++) {
                 condition += (condition.length() > 0 ? " && " : "") + ifLet.varVals.get(i) + " != null";
-                beforeBlock += (beforeBlock.length() > 0 ? ", " : "") + ifLet.varNames.get(i) + ":" + ifLet.varTypes.get(i).jsType() + " = " + ifLet.varVals.get(i);
+                beforeBlock += (beforeBlock.length() > 0 ? ", " : "") + ifLet.varNames.get(i) + ":" + ifLet.varTypes.get(i).swiftType() + " = " + ifLet.varVals.get(i);
             }
             beforeBlock = "const " + beforeBlock + ";";
         }

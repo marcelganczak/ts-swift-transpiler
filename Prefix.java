@@ -27,11 +27,11 @@ public class Prefix implements PrefixOrExpression {
     }
 
     private ParserRuleContext originalCtx;
-    private SwiftParser.Prefix_operatorContext prefixOperatorContext;
+    private ECMAScriptParser.Prefix_operatorContext prefixOperatorContext;
     public ArrayList<PrefixElem> elems = new ArrayList<PrefixElem>();
     public ParserRuleContext originalCtx() {return originalCtx;}
 
-    public Prefix(SwiftParser.Prefix_expressionContext prefixCtx, AbstractType type, Visitor visitor) {
+    public Prefix(ECMAScriptParser.Prefix_expressionContext prefixCtx, AbstractType type, Visitor visitor) {
         ArrayList<ParserRuleContext> chain = flattenChain(prefixCtx);
         originalCtx = prefixCtx;
         prefixOperatorContext = prefixCtx.prefix_operator();
@@ -43,21 +43,21 @@ public class Prefix implements PrefixOrExpression {
             ParserRuleContext ctx = chain.get(chainPos);
 
             List<ParserRuleContext/*Expression_elementContext or Closure_expressionContext*/> functionCallParams = null;
-            if(chainPos < chain.size() - 1 && chain.get(chainPos + 1) instanceof SwiftParser.Function_call_expressionContext) {
-                SwiftParser.Function_call_expressionContext functionCall = (SwiftParser.Function_call_expressionContext) chain.get(chainPos + 1);
+            if(chainPos < chain.size() - 1 && chain.get(chainPos + 1) instanceof ECMAScriptParser.Function_call_expressionContext) {
+                ECMAScriptParser.Function_call_expressionContext functionCall = (ECMAScriptParser.Function_call_expressionContext) chain.get(chainPos + 1);
                 functionCallParams = new ArrayList<ParserRuleContext>();
-                if(functionCall.parenthesized_expression().expression_element_list() != null) for(int i = 0; i < functionCall.parenthesized_expression().expression_element_list().expression_element().size(); i++) functionCallParams.add(functionCall.parenthesized_expression().expression_element_list().expression_element().get(i));
+                if(functionCall.parenthesized_expression().expression_list() != null) for(int i = 0; i < functionCall.parenthesized_expression().expression_list().expression().size(); i++) functionCallParams.add(functionCall.parenthesized_expression().expression_list().expression().get(i));
             }
-            else if(chainPos < chain.size() - 1 && chain.get(chainPos + 1) instanceof SwiftParser.Function_call_with_closure_expressionContext) {
-                SwiftParser.Function_call_with_closure_expressionContext functionCall = (SwiftParser.Function_call_with_closure_expressionContext) chain.get(chainPos + 1);
+            /*else if(chainPos < chain.size() - 1 && chain.get(chainPos + 1) instanceof ECMAScriptParser.Function_call_with_closure_expressionContext) {
+                ECMAScriptParser.Function_call_with_closure_expressionContext functionCall = (ECMAScriptParser.Function_call_with_closure_expressionContext) chain.get(chainPos + 1);
                 functionCallParams = new ArrayList<ParserRuleContext>();
-                if(functionCall.parenthesized_expression() != null && functionCall.parenthesized_expression().expression_element_list() != null) for(int i = 0; i < functionCall.parenthesized_expression().expression_element_list().expression_element().size(); i++) functionCallParams.add(functionCall.parenthesized_expression().expression_element_list().expression_element().get(i));
+                if(functionCall.parenthesized_expression() != null && functionCall.parenthesized_expression().expression_list() != null) for(int i = 0; i < functionCall.parenthesized_expression().expression_list().expression().size(); i++) functionCallParams.add(functionCall.parenthesized_expression().expression_list().expression().get(i));
                 functionCallParams.add(functionCall.trailing_closure().explicit_closure_expression());
-            }
+            }*/
 
             PrefixElem elem;
             boolean skip = false;
-            Replacement replacement = Prefix.replacement(currType, ctx instanceof SwiftParser.Explicit_member_expressionContext ? ((SwiftParser.Explicit_member_expressionContext) ctx).identifier().getText() : ctx.getText(), functionCallParams, visitor);
+            Replacement replacement = Prefix.replacement(currType, ctx instanceof ECMAScriptParser.Explicit_member_expressionContext ? ((ECMAScriptParser.Explicit_member_expressionContext) ctx).Identifier().getText() : ctx.getText(), functionCallParams, visitor);
             if(replacement != null) {
                 elem = replacement.elem;
                 if(replacement.skip) skip = true;
@@ -127,8 +127,8 @@ public class Prefix implements PrefixOrExpression {
             String[] strArrFunctionCallParams = new String[definition.optInt("numParams", definitionFunctionCallParams.length())];
             for(int i = 0; i < definitionFunctionCallParams.length(); i++) {
                 JSONObject definitionFunctionCallParam = definitionFunctionCallParams.optJSONObject(i);
-                AbstractType type = Type.fromDefinition(definitionFunctionCallParam.optString("type"), lType);
-                strArrFunctionCallParams[definitionFunctionCallParam.optInt("index", i)] = (functionCallParams.get(i) instanceof SwiftParser.Explicit_closure_expressionContext ? FunctionUtil.explicitClosureExpression((SwiftParser.Explicit_closure_expressionContext) functionCallParams.get(i), (FunctionType) type, visitor) : new Expression(((SwiftParser.Expression_elementContext)functionCallParams.get(i)).expression(), type, visitor).code);
+                //AbstractType type = Type.fromDefinition(definitionFunctionCallParam.optString("type"), lType);
+                strArrFunctionCallParams[definitionFunctionCallParam.optInt("index", i)] = new Expression((ECMAScriptParser.ExpressionContext)functionCallParams.get(i), null/*type*/, visitor).code;
             }
             if(definition.optJSONArray("defaultParams") != null) {
                 for(int i = 0; i < definition.optJSONArray("defaultParams").length(); i++) {
@@ -159,13 +159,12 @@ public class Prefix implements PrefixOrExpression {
         return false;
     }
 
-    static private ArrayList<ParserRuleContext> flattenChain(SwiftParser.Prefix_expressionContext ctx) {
+    static private ArrayList<ParserRuleContext> flattenChain(ECMAScriptParser.Prefix_expressionContext ctx) {
         ArrayList<ParserRuleContext> flattened = new ArrayList<ParserRuleContext>();
-        SwiftParser.Postfix_expressionContext postfix = ctx.postfix_expression();
+        ECMAScriptParser.Postfix_expressionContext postfix = ctx.postfix_expression();
         while(postfix.postfix_expression() != null) {
-            if(postfix.chain_postfix_expression() != null && !(postfix.chain_postfix_expression() instanceof SwiftParser.Chain_postfix_operatorContext)) {
+            if(postfix.chain_postfix_expression() != null && !(postfix.chain_postfix_expression() instanceof ECMAScriptParser.Chain_postfix_operatorContext)) {
                 flattened.add(0, postfix.chain_postfix_expression());
-                if(postfix.chain_postfix_expression() instanceof SwiftParser.Explicit_member_expression_number_doubleContext) flattened.add(0, postfix.chain_postfix_expression());
             }
             postfix = postfix.postfix_expression();
         }

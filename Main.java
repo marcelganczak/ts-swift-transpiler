@@ -8,22 +8,20 @@ public class Main {
 
     public static void main(String [] args) {
 
-        String srcFile = args.length > 0 ? args[0] : "./example.swift";
-
-        StringInterpolation.breakUp(srcFile);
+        String srcFile = args.length > 0 ? args[0] : "./example.ts";
 
         ANTLRFileStream inputFile = null;
 
         try {
-            inputFile = new ANTLRFileStream("./broke-up-string-interpolation.swift");
+            inputFile = new ANTLRFileStream(srcFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-        SwiftLexer lexer = new SwiftLexer(inputFile);
+        ECMAScriptLexer lexer = new ECMAScriptLexer(inputFile);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        SwiftParser parser = new SwiftParser(tokens);
-        SwiftParser.Top_levelContext tree = parser.top_level();
+        ECMAScriptParser parser = new ECMAScriptParser(tokens);
+        ECMAScriptParser.ProgramContext tree = parser.program();
 
         EntityCache cache = new EntityCache();
 
@@ -33,6 +31,4 @@ public class Main {
         TranspilerVisitor transpilerVisitor = new TranspilerVisitor(cache);
         System.out.println(transpilerVisitor.visit(tree));
     }
-
-
 }

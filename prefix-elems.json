@@ -1,11 +1,8 @@
 {
   "String": {
-    "characters": {
-      "skip": true
-    },
-    "count": {
-      "code": "length",
-      "type": "Int"
+    "length": {
+      "code": "characters.count",
+      "type": "number"
     }
   },
   "Dictionary": {
@@ -102,8 +99,11 @@
     }
   },
   "top-level": {
-    "print": {
-      "code": "console.log",
+    "console": {
+      "skip": true
+    },
+    "log": {
+      "code": "print",
       "accessor": "",
       "type": "Void",
       "params": [{ }]

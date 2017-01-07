@@ -39,18 +39,20 @@ top_level : statement* EOF ;
 
 statement
 // : assignment_statement ';'?
- : expression ';'?
- | declaration ';'?
- | loop_statement ';'?
- | branch_statement ';'?
- | labeled_statement ';'?
- | control_transfer_statement ';'?
- | defer_statement ';'?
- | do_statement ';'?
+ : expression semicolon?
+ | declaration semicolon?
+ | loop_statement semicolon?
+ | branch_statement semicolon?
+ | labeled_statement semicolon?
+ | control_transfer_statement semicolon?
+ | defer_statement semicolon?
+ | do_statement semicolon?
  | compiler_control_statement
  ;
 
 statements : statement+ ;
+
+semicolon: ';';
 
 /** A naked '=' op is not part of a valid expression so I'm making it a statement;
  *  see comment on binary_expression.  It also resolves ambiguity between
@@ -104,11 +106,7 @@ optional_binding_condition
  ;
 optional_binding_head : 'let' pattern initializer | 'var' pattern initializer ;
 optional_binding_continuation_list
- : ',' optional_binding_continuation (',' optional_binding_continuation)*
- ;
-optional_binding_continuation
- : pattern initializer
- | optional_binding_head
+ : ',' optional_binding_head (',' optional_binding_head)*
  ;
 
 
@@ -651,7 +649,7 @@ primary_expression
  | superclass_expression
  | closure_expression
  | parenthesized_expression
- | implicit_member_expression
+ //| implicit_member_expression NEEDED??
  | wildcard_expression
  | selector_expression
  ;
@@ -698,7 +696,11 @@ superclass_initializer_expression : 'super' '.' 'init'  ;
 
 // GRAMMAR OF A CLOSURE EXPRESSION
 
-closure_expression : '{' closure_signature? statements? '}'  ;
+closure_expression
+ : explicit_closure_expression
+ | operator
+ ;
+explicit_closure_expression : '{' closure_signature? statements? '}'  ;
 closure_signature
  : parameter_clause function_result? 'in'
  | identifier_list function_result? 'in'
@@ -730,20 +732,23 @@ selector_expression : '#selector' '(' expression ')' ;
 // GRAMMAR OF A POSTFIX EXPRESSION (inlined many rules from spec to avoid indirect left-recursion)
 
 postfix_expression
- : primary_expression                                              # primary
-// | postfix_expression postfix_operator                            # postfix_operation
- | postfix_expression parenthesized_expression                     # function_call_expression
- | postfix_expression parenthesized_expression? trailing_closure   # function_call_with_closure_expression
- | postfix_expression '.' 'init'                                   # initializer_expression
- | postfix_expression '.' 'init' '(' argument_names ')'            # initializer_expression_with_args
- | postfix_expression '.' Pure_decimal_digits                      # explicit_member_expression1
- | postfix_expression '?'? '.' identifier generic_argument_clause? # explicit_member_expression2
- | postfix_expression '.' identifier '(' argument_names ')'        # explicit_member_expression3
- | postfix_expression '.' 'self'                                   # postfix_self_expression
- | postfix_expression '.' 'dynamicType'                            # dynamic_type_expression
- | postfix_expression '[' expression_list ']'                      # subscript_expression
- | postfix_expression '!'                                          # forced_value_expression
- | postfix_expression '?' '?' identifier                           # nil_coalescing
+ : primary_expression
+ | postfix_expression chain_postfix_expression
+ ;
+
+chain_postfix_expression
+ : '?'? parenthesized_expression? trailing_closure   # function_call_with_closure_expression
+ | '?'? parenthesized_expression                     # function_call_expression
+ | '?'? '.' 'init'                                   # initializer_expression
+ | '?'? '.' 'init' '(' argument_names ')'            # initializer_expression_with_args
+ | '?'? '.' identifier generic_argument_clause?      # explicit_member_expression
+ | '?'? '.' Decimal_literal                          # explicit_member_expression_number
+ | '?'? '.' Floating_point_literal                   # explicit_member_expression_number_double
+ | '?'? '.' 'self'                                   # postfix_self_expression
+ | '?'? '.' 'dynamicType'                            # dynamic_type_expression
+ | '?'? '[' expression_list ']'                      # subscript_expression
+ | postfix_operator                                  # chain_postfix_operator
+// | '!'                                               # forced_value_expression
  ;
 
 /* This might be faster than above
@@ -768,7 +773,7 @@ argument_names : argument_name argument_names? ;
 
 argument_name : identifier ':' ;
 
-trailing_closure : closure_expression ;
+trailing_closure : explicit_closure_expression ;
 
 // GRAMMAR OF A TYPE
 
@@ -779,12 +784,13 @@ type
  | type 'rethrows' arrow_operator type
  | type_identifier
  | tuple_type
- | type '?'
+ | type optional_type
  | type '!'
  | protocol_composition_type
  | type '.' 'Type'
  | type '.' 'Protocol'
  ;
+optional_type: '?';
 
 array_definition : '[' type ']';
 dictionary_definition : '[' type ':' type ']';
@@ -858,13 +864,14 @@ class_requirement : 'class' ;
 
 // GRAMMAR OF AN IDENTIFIER
 
-identifier : Identifier | context_sensitive_keyword ;
-
-Identifier
- : Identifier_head Identifier_characters?
- | '`' Identifier_head Identifier_characters? '`'
- | Implicit_parameter_name
+identifier
+ : Regular_identifier          #regular_parameter
+ | '`' Regular_identifier '`'  #escaped_parameter
+ | Implicit_parameter_name     #implicit_parameter
+ | context_sensitive_keyword   #context_sensitive_keyword_parameter
  ;
+
+Regular_identifier: Identifier_head Identifier_characters?;
 
 identifier_list : identifier (',' identifier)* ;
 

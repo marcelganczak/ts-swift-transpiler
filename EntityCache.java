@@ -15,7 +15,7 @@ public class EntityCache {
     private Map<ParseTree, Map<String, CacheObject>> cache = new HashMap<ParseTree, Map<String, CacheObject>>();
 
     private ParseTree findNearestAncestorBlock(ParseTree node) {
-        boolean isBlock = node instanceof SwiftParser.Top_levelContext || node instanceof SwiftParser.Code_blockContext || node instanceof SwiftParser.Closure_expressionContext;
+        boolean isBlock = node instanceof ECMAScriptParser.ProgramContext || node instanceof ECMAScriptParser.ConciseBodyContext || node instanceof ECMAScriptParser.BlockContext || /*NERVOUS*/node instanceof ECMAScriptParser.CaseClauseContext;
         if(isBlock) return node;
         if(node == null || node.getParent() == null || node.getParent() == node) return null;
         return findNearestAncestorBlock(node.getParent());
@@ -28,14 +28,14 @@ public class EntityCache {
             Map<String, CacheObject> blockTypeCache = cache.get(node);
             if(blockTypeCache == null) continue;
             if(blockTypeCache.containsKey(varName)) return blockTypeCache.get(varName);
-            if(node instanceof SwiftParser.Top_levelContext) break;
+            if(node instanceof ECMAScriptParser.ProgramContext) break;
         }
         return null;
     }
 
     public AbstractType getType(String varName, ParseTree node) {
         CacheObject cache = findCache(varName, node);
-        if(cache == null) {
+        /*if(cache == null) {
             Map<String, FunctionType> candidates = getFunctionTypesStartingWith(varName, node);
             if(candidates.size() == 0) {
                 Expression variadicFunction = getFunctionTypeEndingWithVariadic(varName, node);
@@ -44,29 +44,12 @@ public class EntityCache {
             }
             if(candidates.size() > 1) System.out.println("//Found more than 1 candidate for " + varName);
             return candidates.get(candidates.keySet().toArray()[0]);
-        }
+        }*/
         return cache.type;
     }
     public AbstractType getTypeStrict(String varName, ParseTree node) {
         CacheObject cache = findCache(varName, node);
         return cache != null ? cache.type : null;
-    }
-
-    public Map<String, FunctionType> getFunctionTypesStartingWith(String varName, ParseTree node) {
-        Map<String, FunctionType> matches = new HashMap<String, FunctionType>();
-        varName = varName.trim();
-
-        while((node = findNearestAncestorBlock(node.getParent())) != null) {
-            Map<String, CacheObject> blockTypeCache = cache.get(node);
-            if(blockTypeCache == null) continue;
-            for(Map.Entry<String, CacheObject> iterator:blockTypeCache.entrySet()) {
-                if(iterator.getKey().startsWith(varName) && iterator.getValue().type instanceof FunctionType && (iterator.getKey().length() == varName.length() || iterator.getKey().startsWith(varName + "$"))) {
-                    matches.put(iterator.getKey(), (FunctionType)iterator.getValue().type);
-                }
-            }
-            if(node instanceof SwiftParser.Top_levelContext) break;
-        }
-        return matches;
     }
 
     public Expression getFunctionTypeEndingWithVariadic(String varName, ParseTree node) {
@@ -82,17 +65,17 @@ public class EntityCache {
             for(int j = 0; j < i; j++) subVarName += (j > 0 ? "$" : "") + params[j];
             subVarName += "$_Array";
             CacheObject cache = findCache(subVarName, node);
-            if(cache != null && cache.type instanceof FunctionType) {
+            /*if(cache != null && cache.type instanceof FunctionType) {
                 List<AbstractType> parameterTypes = ((FunctionType)cache.type).parameterTypes;
                 if(!parameterTypes.get(parameterTypes.size() - 1).resulting(null).swiftType().equals(param.split("_")[1])) continue;
                 return new Expression(subVarName, cache.type);
-            }
+            }*/
         }
         return null;
     }
 
     public void cacheOne(String identifier, AbstractType type, ParseTree ctx) {
-        //System.out.println("Caching " + identifier + " as " + type.swiftType());
+        //System.out.println("Caching " + identifier + " as " + type.tsType());
 
         ParseTree nearestAncestorBlock = findNearestAncestorBlock(ctx);
 
